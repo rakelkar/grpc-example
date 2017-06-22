@@ -28,6 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
@@ -37,18 +38,44 @@ namespace GreeterServer
 {
 	class GreeterImpl : Greeter.GreeterBase
 	{
-		string instanceName;
+		readonly string instanceName;
+		readonly List<Channel> downStreamChannels;
         
-		public GreeterImpl(string instanceName)
+		public GreeterImpl(string instanceName, string downStreamHosts)
 		{
 			this.instanceName = instanceName;
+
+			downStreamChannels = new List<Channel>();
+			foreach	(var downStreamHost in downStreamHosts.Split('|'))
+			{
+				if (!string.IsNullOrEmpty(downStreamHost))
+				{
+					Console.WriteLine($"Creating channel to downstream host {downStreamHost}");
+					downStreamChannels.Add(new Channel(downStreamHost, ChannelCredentials.Insecure));
+				}
+			}
 		}
 		// Server side handler of the SayHello RPC
 		public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
 		{
 			var greetHeader = string.Join(", ", context.RequestHeaders.Select(header => $"[{header.Key}:{header.Value}]"));
 			Console.WriteLine($"got a request from {context.Host} with {greetHeader}");
-			return Task.FromResult(new HelloReply { Message = $"[{this.instanceName}] Hello {request.Name}" });
+
+			var sendTasks = new List<Task<HelloReply>>();
+			foreach (var channel in downStreamChannels)
+			{
+				var client = new Greeter.GreeterClient(channel);
+				sendTasks.Add(client.SayHelloAsync(request).ResponseAsync);
+			}
+
+			var helloFrom = "me";
+			if (sendTasks.Count > 0)
+			{
+				Task.WaitAll(sendTasks.ToArray());
+				helloFrom = string.Join(",", sendTasks.Select(t => t.Result.Message));
+			}
+
+			return Task.FromResult(new HelloReply { Message = $"[{this.instanceName}] Hello {request.Name} from {helloFrom}" });
 		}
 	}
 
@@ -64,10 +91,12 @@ namespace GreeterServer
 				port = DefaultPort;
 			}
             var instanceName = Environment.GetEnvironmentVariable("GREETINGS_NAME") ?? Environment.MachineName;
+
+            var downStreamHosts = Environment.GetEnvironmentVariable("GREETINGS_DOWNSTREAM_HOSTS") ?? string.Empty;
  
 			Server server = new Server
 			{
-				Services = { Greeter.BindService(new GreeterImpl(instanceName)) },
+				Services = { Greeter.BindService(new GreeterImpl(instanceName, downStreamHosts)) },
 				Ports = { new ServerPort("0.0.0.0", port, ServerCredentials.Insecure) }
 			};
 			server.Start();
