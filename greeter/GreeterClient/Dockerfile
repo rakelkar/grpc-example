@@ -1,8 +1,6 @@
 FROM microsoft/dotnet:1.1-runtime-nanoserver
 WORKDIR /app
-ENV GREETINGS_PORT 3000
-EXPOSE 3000
 COPY bin/Debug/netcoreapp1.0/publish /app
  
-ENTRYPOINT ["dotnet", "GreeterServer.dll"]
+ENTRYPOINT ["dotnet", "GreeterClient.dll"]
 
