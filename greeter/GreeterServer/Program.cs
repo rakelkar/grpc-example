@@ -30,21 +30,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Helloworld;
 
 namespace GreeterServer
 {
-	class GreeterImpl : Greeter.GreeterBase
+	class GreetingFederator
 	{
-		readonly string instanceName;
 		readonly List<Channel> downStreamChannels;
-        
-		public GreeterImpl(string instanceName, string downStreamHosts)
-		{
-			this.instanceName = instanceName;
 
+		public GreetingFederator( string downStreamHosts)
+		{
 			downStreamChannels = new List<Channel>();
 			foreach	(var downStreamHost in downStreamHosts.Split('|'))
 			{
@@ -55,11 +53,13 @@ namespace GreeterServer
 				}
 			}
 		}
-		// Server side handler of the SayHello RPC
-		public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
+
+		public IEnumerable<Task<HelloReply>> SayHello(HelloRequest request)
 		{
-			var greetHeader = string.Join(", ", context.RequestHeaders.Select(header => $"[{header.Key}:{header.Value}]"));
-			Console.WriteLine($"got a request from {context.Host} with {greetHeader}");
+			if (downStreamChannels.Count == 0)
+			{
+				return null;
+			}
 
 			var sendTasks = new List<Task<HelloReply>>();
 			foreach (var channel in downStreamChannels)
@@ -68,11 +68,32 @@ namespace GreeterServer
 				sendTasks.Add(client.SayHelloAsync(request).ResponseAsync);
 			}
 
+			return sendTasks;
+		}
+	}
+	class GreeterImpl : Greeter.GreeterBase
+	{
+		readonly string instanceName;
+		readonly GreetingFederator federator;
+        
+		public GreeterImpl(string instanceName, GreetingFederator federator)
+		{
+			this.instanceName = instanceName;
+			this.federator = federator;
+		}
+
+		// Server side handler of the SayHello RPC
+		public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
+		{
+			var greetHeader = string.Join(", ", context.RequestHeaders.Select(header => $"[{header.Key}:{header.Value}]"));
+			Console.WriteLine($"got a request from {context.Host} with {greetHeader}");
+			var federatedRequests = this.federator.SayHello(request);
+
 			var helloFrom = "me";
-			if (sendTasks.Count > 0)
+			if (federatedRequests != null)
 			{
-				Task.WaitAll(sendTasks.ToArray());
-				helloFrom = string.Join(",", sendTasks.Select(t => t.Result.Message));
+				Task.WaitAll(federatedRequests.ToArray());
+				helloFrom = string.Join(",", federatedRequests.Select(t => t.Result.Message));
 			}
 
 			return Task.FromResult(new HelloReply { Message = $"[{this.instanceName}] Hello {request.Name} from {helloFrom}" });
@@ -93,20 +114,45 @@ namespace GreeterServer
             var instanceName = Environment.GetEnvironmentVariable("GREETINGS_NAME") ?? Environment.MachineName;
 
             var downStreamHosts = Environment.GetEnvironmentVariable("GREETINGS_DOWNSTREAM_HOSTS") ?? string.Empty;
+
+			int helloDelay;
+			if (!int.TryParse(Environment.GetEnvironmentVariable("GREETINGS_DELAY"), out helloDelay))
+			{
+				helloDelay = 0;
+			}
  
+			var federator = new GreetingFederator(downStreamHosts);
+
 			Server server = new Server
 			{
-				Services = { Greeter.BindService(new GreeterImpl(instanceName, downStreamHosts)) },
+				Services = { Greeter.BindService(new GreeterImpl(instanceName, federator)) },
 				Ports = { new ServerPort("0.0.0.0", port, ServerCredentials.Insecure) }
 			};
 			server.Start();
 
 			Console.WriteLine($"Greeter server [{instanceName}] listening on port [{port}]");
 
+			var cts = new CancellationTokenSource();
+			if (helloDelay != 0)
+			{
+				Task.Run(() => {
+					while(!cts.IsCancellationRequested)
+					{
+						Console.WriteLine($"Greeter server [{instanceName}] says hello");
+						federator.SayHello(new HelloRequest {Name = instanceName});
+						if (helloDelay > 0)
+						{
+							Task.Delay(helloDelay, cts.Token);
+						}
+					}
+				}, cts.Token);
+			}
+
 			var syncTask = new TaskCompletionSource<bool>();
 			
 			System.Runtime.Loader.AssemblyLoadContext.Default.Unloading += (context) => {
 				Console.WriteLine("Greeter server received kill signal...");
+				cts.Cancel();
 				server.ShutdownAsync().Wait();
 				syncTask.SetResult(true);
 			};

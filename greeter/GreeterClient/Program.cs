@@ -48,7 +48,7 @@ namespace GreeterClient
             double timeoutMSecs;
             if (!double.TryParse(Environment.GetEnvironmentVariable("GREETINGS_TIMEOUT_MSECS"), out timeoutMSecs))
             {
-                timeoutMSecs = 1000 * 60 * 5;
+                timeoutMSecs = 1000 * 30;
             }
 
             var server = $"{host}:{port}";
