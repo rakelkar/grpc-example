@@ -1,0 +1,10 @@
+version: '2'
+services:
+
+  client:
+    build: GreeterClient
+
+  server:
+    build: GreeterServer
+    ports:
+     - "3000:3000"
