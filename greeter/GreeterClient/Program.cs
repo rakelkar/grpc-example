@@ -51,6 +51,12 @@ namespace GreeterClient
                 timeoutMSecs = 1000 * 30;
             }
 
+            int delay;
+            if (!int.TryParse(Environment.GetEnvironmentVariable("GREETINGS_DELAYMS"), out delay))
+            {
+                delay = 0;
+            }
+
             var server = $"{host}:{port}";
             Console.WriteLine($"Connecting to {server}");
             Channel channel = new Channel(server, ChannelCredentials.Insecure);
@@ -61,8 +67,19 @@ namespace GreeterClient
             Console.WriteLine($"Sending greeting with deadline {timeoutMSecs} msecs");
             var headerMetadata = new Metadata();
             headerMetadata.Add("X-GREET", "bob|charlie");
-            var reply = client.SayHello(new HelloRequest { Name = user }, headerMetadata, DateTime.UtcNow.AddMilliseconds(timeoutMSecs));
-            Console.WriteLine("Greeting: " + reply.Message);
+
+            while(true)
+            {
+                var reply = client.SayHello(new HelloRequest { Name = user }, headerMetadata, DateTime.UtcNow.AddMilliseconds(timeoutMSecs));
+                Console.WriteLine("Greeting: " + reply.Message);
+
+                if (delay <= 0)
+                {
+                    break;
+                }
+
+                System.Threading.Thread.Sleep(delay);       
+            }
 
             channel.ShutdownAsync().Wait();
         }

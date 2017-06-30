@@ -86,7 +86,7 @@ namespace GreeterServer
 		public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
 		{
 			var greetHeader = string.Join(", ", context.RequestHeaders.Select(header => $"[{header.Key}:{header.Value}]"));
-			Console.WriteLine($"got a request from {context.Host} with {greetHeader}");
+			Console.WriteLine($"got a request from {context.Peer} with {greetHeader}");
 			var federatedRequests = this.federator.SayHello(request);
 
 			var helloFrom = "me";
