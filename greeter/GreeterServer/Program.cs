@@ -54,18 +54,18 @@ namespace GreeterServer
 			}
 		}
 
-		public IEnumerable<Task<HelloReply>> SayHello(HelloRequest request)
+		public List<AsyncUnaryCall<HelloReply>> SayHello(HelloRequest request)
 		{
 			if (downStreamChannels.Count == 0)
 			{
 				return null;
 			}
 
-			var sendTasks = new List<Task<HelloReply>>();
+			var sendTasks = new List<AsyncUnaryCall<HelloReply>>();
 			foreach (var channel in downStreamChannels)
 			{
 				var client = new Greeter.GreeterClient(channel);
-				sendTasks.Add(client.SayHelloAsync(request).ResponseAsync);
+				sendTasks.Add(client.SayHelloAsync(request));
 			}
 
 			return sendTasks;
@@ -85,18 +85,32 @@ namespace GreeterServer
 		// Server side handler of the SayHello RPC
 		public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
 		{
-			var greetHeader = string.Join(", ", context.RequestHeaders.Select(header => $"[{header.Key}:{header.Value}]"));
+			var greetHeader = string.Join(", ", context.RequestHeaders
+				.Where(header => string.Equals(header.Key, "X-GREET", StringComparison.OrdinalIgnoreCase))
+				.Select(header => $"[{header.Value}]"));
 			Console.WriteLine($"got a request from {context.Peer} with {greetHeader}");
 			var federatedRequests = this.federator.SayHello(request);
 
-			var helloFrom = "me";
+			var helloFrom = string.Empty;
+			var responseTasks = new List<Task<HelloReply>>();
 			if (federatedRequests != null)
 			{
-				Task.WaitAll(federatedRequests.ToArray());
-				helloFrom = string.Join(",", federatedRequests.Select(t => t.Result.Message));
+				var headerTasks = new List<Task<Metadata>>(federatedRequests.Select(r => r.ResponseHeadersAsync));
+				 responseTasks = new List<Task<HelloReply>>(federatedRequests.Select(r => r.ResponseAsync));
+				Task.WaitAll(headerTasks.ToArray());
+				helloFrom = string
+					.Join(",", headerTasks
+					.Select(t => t.Result
+					.Where(header => string.Equals(header.Key, "X-GREET", StringComparison.OrdinalIgnoreCase))
+					.Select(header => $"{header.Value}")));
 			}
 
-			return Task.FromResult(new HelloReply { Message = $"[{this.instanceName}] Hello {request.Name} from {helloFrom}" });
+            var headerMetadata = new Metadata();
+            headerMetadata.Add("X-GREET", $"[{instanceName}]{helloFrom}");
+			context.WriteResponseHeadersAsync(headerMetadata);
+			
+			Task.WaitAll(responseTasks.ToArray());
+			return Task.FromResult(new HelloReply { Message = request.Name });
 		}
 	}
 
