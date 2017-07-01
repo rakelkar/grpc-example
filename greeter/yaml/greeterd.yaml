@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: greeterd
+  namespace: default
+spec:
+  containers:
+  - image: msftmicroservices01.azurecr.io/greeterd:latest
+    name: greeterd
+  imagePullSecrets:
+  - name: msftmicroservices01

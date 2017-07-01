@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: greeterc
+  namespace: default
+spec:
+  containers:
+  - env:
+    - name: GREETINGS_DELAYMS
+      value: "2000"
+    - name: GREETINGS_HOST
+      value: haha
+    image: msftmicroservices01.azurecr.io/greeterc:latest
+    imagePullPolicy: Always
+    name: greeterc
+  imagePullSecrets:
+  - name: msftmicroservices01
