@@ -9,7 +9,7 @@ spec:
     - name: GREETINGS_DELAYMS
       value: "2000"
     - name: GREETINGS_HOST
-      value: haha
+      value: localhost
     image: msftmicroservices01.azurecr.io/greeterc:latest
     imagePullPolicy: Always
     name: greeterc
