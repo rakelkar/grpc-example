@@ -1,0 +1,26 @@
+FROM microsoft/dotnet:1.1.2-sdk
+
+# copy csproj and restore as distinct layers
+WORKDIR /app
+COPY Greeter/*.csproj Greeter/
+COPY GreeterClient/*.csproj GreeterClient/
+
+WORKDIR GreeterClient
+RUN dotnet restore
+
+# copy and build everything else
+WORKDIR /app
+COPY Greeter Greeter/
+COPY GreeterClient GreeterClient/
+
+WORKDIR GreeterClient
+RUN dotnet build
+RUN dotnet publish -c Release -o out
+ENTRYPOINT ["dotnet", "out/GreeterClient.dll"]
+
+
+FROM microsoft/dotnet:1.1-runtime
+WORKDIR /app
+COPY --from=build-env /app/GreeterClient/out .
+ENTRYPOINT ["dotnet", "GreeterClient.dll"]
+
