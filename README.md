@@ -19,12 +19,16 @@ None :) the repo uses Docker multi-state build
 
 BUILD
 -----
-cd greeter
-docker-compose build
+```
+> cd greeter
+> docker-compose build
+```
 
 RUN
 ---
-docker-compose up
+```
+> docker-compose up
+```
 
 Note: the client will fail since it is currently attempting to bind to localhost. 
 Edit the compose file to put in your host name for GREETINGS_HOST
@@ -49,6 +53,8 @@ From the `greeter/GreetingClient` (and Server) directories:
 
 RUN ON HOST
 -----------
+
+(you dont have to do this - see docker-compose instead)
 
 - Run the server
 
