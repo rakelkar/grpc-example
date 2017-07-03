@@ -1,10 +1,18 @@
-version: '2'
+version: '3'
 services:
 
-  client:
-    build: GreeterClient
+  greeterc:
+    image: msftmicroservices01.azurecr.io/greeterc:latest
+    depends_on:
+      - greeterd
+    build: 
+      context: .
+      dockerfile: Dockerfile.client
 
-  server:
-    build: GreeterServer
+  greeterd:
+    image: msftmicroservices01.azurecr.io/greeterd:latest
+    build: 
+      context: .
+      dockerfile: Dockerfile.server
     ports:
      - "3000:3000"
