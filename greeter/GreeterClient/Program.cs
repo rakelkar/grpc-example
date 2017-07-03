@@ -42,6 +42,7 @@ namespace GreeterClient
         public static void Main(string[] args)
         {
             var instanceName = Environment.GetEnvironmentVariable("GREETINGS_NAME") ?? Environment.MachineName;
+            
             var host = Environment.GetEnvironmentVariable("GREETINGS_HOST") ?? "localhost";
             int port;
             if (!int.TryParse(Environment.GetEnvironmentVariable("GREETINGS_PORT"), out port))

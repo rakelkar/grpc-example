@@ -1,4 +1,4 @@
-gRPC in 3 minutes (C#)
+gRPC in timing greeter
 ========================
 
 BACKGROUND
@@ -12,22 +12,35 @@ Example projects in this directory depend on the [Grpc](https://www.nuget.org/pa
 and [Google.Protobuf](https://www.nuget.org/packages/Google.Protobuf/) NuGet packages
 which have been already added to the project for you.
 
-The examples in this directory target .NET 4.5 framework, as .NET Core support is
-currently experimental.
+PREREQUISITES FOR RUNNING IN CONTAINERS
+---------------------------------------
+None :) the repo uses Docker multi-state build
 
-PREREQUISITES
--------------
-
-- The DotNetCore SDK cli.
-
-- The .NET 4.5 framework.
-
-Both are available to download at https://www.microsoft.com/net/download
 
 BUILD
--------
+-----
+docker-compose build
 
-From the `examples/csharp/helloworld-from-cli` directory:
+RUN
+---
+docker-compose up
+
+Note: the client will fail since it is currently attempting to bind to localhost. 
+Edit the compose file to put in your host name for GREETINGS_HOST
+
+
+PREREQUISITES FOR RUNNING ON HOST
+---------------------------------
+
+- The DotNetCore SDK cli  available to download at https://www.microsoft.com/net/download
+
+
+BUILD ON HOST
+-------------
+
+(you dont have to do this - see docker-compose instead)
+
+From the `greeter/GreetingClient` (and Server) directories:
 
 - `dotnet restore`
 
@@ -50,10 +63,8 @@ Try it!
   > dotnet run
   ```
 
-Tutorial
+
+More
 --------
 
 You can find a more detailed tutorial about Grpc in [gRPC Basics: C#][]
-
-[helloworld.proto]:../../protos/helloworld.proto
-[gRPC Basics: C#]:http://www.grpc.io/docs/tutorials/basic/csharp.html

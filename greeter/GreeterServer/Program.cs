@@ -40,9 +40,12 @@ namespace GreeterServer
 	class GreetingFederator
 	{
 		readonly List<Channel> downStreamChannels;
+		readonly string instanceName;
 
-		public GreetingFederator( string downStreamHosts)
+		public GreetingFederator( string downStreamHosts, string instanceName)
 		{
+			this.instanceName = instanceName;
+
 			downStreamChannels = new List<Channel>();
 			foreach	(var downStreamHost in downStreamHosts.Split('|'))
 			{
@@ -61,11 +64,14 @@ namespace GreeterServer
 				return null;
 			}
 
+            var headerMetadata = new Metadata();
+            headerMetadata.Add("X-GREET", instanceName);
+
 			var sendTasks = new List<AsyncUnaryCall<HelloReply>>();
 			foreach (var channel in downStreamChannels)
 			{
 				var client = new Greeter.GreeterClient(channel);
-				sendTasks.Add(client.SayHelloAsync(request));
+				sendTasks.Add(client.SayHelloAsync(request, headerMetadata));
 			}
 
 			return sendTasks;
@@ -85,12 +91,16 @@ namespace GreeterServer
 		// Server side handler of the SayHello RPC
 		public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
 		{
+			// print who called us
 			var greetHeader = string.Join(", ", context.RequestHeaders
 				.Where(header => string.Equals(header.Key, "X-GREET", StringComparison.OrdinalIgnoreCase))
 				.Select(header => $"[{header.Value}]"));
 			Console.WriteLine($"got a request from {context.Peer} with {greetHeader}");
+
+			// federate (if required)
 			var federatedRequests = this.federator.SayHello(request);
 
+			// wait for responses
 			var helloFrom = string.Empty;
 			var responseTasks = new List<Task<HelloReply>>();
 			if (federatedRequests != null)
@@ -105,6 +115,7 @@ namespace GreeterServer
 					.Select(header => $"{header.Value}")));
 			}
 
+			// respond to caller
             var headerMetadata = new Metadata();
             headerMetadata.Add("X-GREET", $"[{instanceName}]{helloFrom}");
 			context.WriteResponseHeadersAsync(headerMetadata);
@@ -130,12 +141,12 @@ namespace GreeterServer
             var downStreamHosts = Environment.GetEnvironmentVariable("GREETINGS_DOWNSTREAM_HOSTS") ?? string.Empty;
 
 			int helloDelay;
-			if (!int.TryParse(Environment.GetEnvironmentVariable("GREETINGS_DELAY"), out helloDelay))
+			if (!int.TryParse(Environment.GetEnvironmentVariable("GREETINGS_DELAYMS"), out helloDelay))
 			{
 				helloDelay = 0;
 			}
  
-			var federator = new GreetingFederator(downStreamHosts);
+			var federator = new GreetingFederator(downStreamHosts, instanceName);
 
 			Server server = new Server
 			{
@@ -149,11 +160,21 @@ namespace GreeterServer
 			var cts = new CancellationTokenSource();
 			if (helloDelay != 0)
 			{
+				int numBytes;
+				string payload = string.Empty;
+				if (int.TryParse(Environment.GetEnvironmentVariable("GREETINGS_NUMBYTES"), out numBytes))
+				{
+					if (numBytes > 0)
+					{
+						payload = new string('*', numBytes);
+					}
+				}
+
+				Console.WriteLine($"Greeter server [{instanceName}] will federate as client");
 				Task.Run(() => {
 					while(!cts.IsCancellationRequested)
 					{
-						Console.WriteLine($"Greeter server [{instanceName}] says hello");
-						federator.SayHello(new HelloRequest {Name = instanceName});
+						federator.SayHello(new HelloRequest {Name = payload});
 						if (helloDelay > 0)
 						{
 							Task.Delay(helloDelay, cts.Token);

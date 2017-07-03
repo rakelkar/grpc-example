@@ -2,6 +2,13 @@ version: '3'
 services:
 
   greeterc:
+    environment:
+      - GREETINGS_HOST=localhost
+      - GREETINGS_PORT=3000
+      - GREETINGS_DELAYMS=0
+      - GREETINGS_NUMTASKS=1
+      - GREETINGS_NUMBYTES=1024
+      #- GREETINGS_NAME=
     image: msftmicroservices01.azurecr.io/greeterc:latest
     depends_on:
       - greeterd
@@ -10,6 +17,13 @@ services:
       dockerfile: Dockerfile.client
 
   greeterd:
+    environment:
+      - GREETINGS_HOST=localhost
+      - GREETINGS_PORT=3000
+      - GREETINGS_DELAYMS=0
+      - GREETINGS_NUMBYTES=1024
+      #- GREETINGS_DOWNSTREAM_HOSTS=
+      #- GREETINGS_NAME=
     image: msftmicroservices01.azurecr.io/greeterd:latest
     build: 
       context: .
