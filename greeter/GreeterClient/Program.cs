@@ -103,11 +103,11 @@ namespace GreeterClient
                         var replyHeaders = headerTask.Result;
                         var reply = recvTask.Result;
 
-                        var elapsed = sw.ElapsedMilliseconds;
+                        var elapsed = sw.Elapsed.TotalMilliseconds * 1000;
                         var helloFrom = string.Join(",", replyHeaders
                             .Where(header => string.Equals(header.Key, "X-GREET", StringComparison.OrdinalIgnoreCase))
                             .Select(header => $"{header.Value}"));
-                        Console.WriteLine($"[{taskId}] OK [{numBytes}-{reply.CalculateSize()}] in [{elapsed}]ms from {helloFrom}");
+                        Console.WriteLine($"[{taskId}] OK [{numBytes}-{reply.CalculateSize()}] in [{elapsed}] μs from {helloFrom}");
 
                         if (delay <= 0)
                         {

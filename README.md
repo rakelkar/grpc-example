@@ -1,16 +1,10 @@
 gRPC timing greeter client and server
 =====================================
 
-BACKGROUND
--------------
-This is a different version of the helloworld example, using the dotnet sdk
-tools to build and run.
+This is an example GRPC client and server based on the example in the GRPC repo.
 
-For this sample, we've already generated the server and client stubs from [helloworld.proto][].
-
-Example projects in this directory depend on the [Grpc](https://www.nuget.org/packages/Grpc/)
-and [Google.Protobuf](https://www.nuget.org/packages/Google.Protobuf/) NuGet packages
-which have been already added to the project for you.
+The project depends on the [Grpc](https://www.nuget.org/packages/Grpc/)
+and [Google.Protobuf](https://www.nuget.org/packages/Google.Protobuf/) NuGet packages.
 
 PREREQUISITES FOR RUNNING IN CONTAINERS
 ---------------------------------------
